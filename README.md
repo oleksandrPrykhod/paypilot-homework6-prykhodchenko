@@ -1,2 +1,204 @@
-# paypilot-homework6-prykhodchenko
-homework6
+# ДЗ_6 · Tool Call Testing Policy · Олександр Приходченко
+
+Копія кіта L07 ([paypilot-l07-eval](https://github.com/sergeytkachenko/paypilot-l07-eval)) з набором сценаріїв і Policy для ДЗ_6.
+
+| Файл | Що це |
+|---|---|
+| `tool-call-testing-policy.md` | Policy: **A** — заповнена для PayPilot, **B** — порожня форма для будь-якого агента |
+| `docs/policy-evidence.md` | повна робоча версія з таблицями прогонів і лабораторними записами — докази до Policy |
+| `scenarios/` | 10 сценаріїв, з них 4 власні (S6, S7, S8, S9); у кожному — `dimension`, `level`, `gate`, `runs` |
+| `mock/expectations.json` | відповіді мока на попередніх кроках, зібрані `build_mock.py` зі `scenarios/` |
+
+| ID | Вимірник | gate · runs | Перевірки живого кроку |
+|---|---|---|---|
+| S1 · D12 | стан | daily · 1 | tool_called (передумова), state_row |
+| S3A · D29 | контракт | daily · 1 | tool_result_schema |
+| S4 | стан (повтор) | daily · 1 | state_row, expected_count 1 |
+| S6 · D11 (власний) | стан | daily · 1 | tool_called (передумова), state_row |
+| S2 | параметри | release · 5 | tool_called, tool_not_called, state_row |
+| S3B · D29 | контракт | release · 5 | tool_call_count 0, max_tool_calls |
+| S5 · D28 | вартість | release · 5 | cache_read_min |
+| S7 · D13 (власний) | інструмент | release · 5 | tool_sequence |
+| S8 (власний) | порядок | release · 5 | tool_called (передумова), tool_order |
+| S9 (власний) | стан (write, якого не мало бути) | release · 5 | tool_call_count 0, state_row expected_count 0 |
+
+**Запуск з цього репозиторію** (замість `~/paypilot/l07` у кроках нижче — корінь цього репо):
+
+```
+docker compose run --rm --entrypoint python eval build_mock.py
+docker compose up -d llm-mock
+docker compose run --rm eval --gate daily
+docker compose run --rm eval --gate release
+```
+
+Стенд за проксі піднімається з `mock/stand.override.yml` (крок 4 нижче). Override бере сертифікат мока зі шляху `${L07_DIR:-../l07}`; якщо цей репо лежить не в `../l07` відносно стенда, задайте `L07_DIR=<шлях до цього репо>`. Ключ OpenRouter лежить у `.env` стенда, не тут; `.env` до репозиторію не потрапляє. Сирі звіти `run-*.json` — у `.gitignore`.
+
+Далі — README кіта без змін.
+
+---
+
+# L07 · Один крок багатокрокового чату
+
+Кіт до лабораторної L07 курсу з тестування LLM-агентів. Ви тестуєте **один
+крок** діалогу бота підтримки PayPilot. Попередні кроки відтворює мок моделі
+(MockServer): вони однакові в кожному прогоні й нічого не коштують. Останній
+крок іде в справжню модель, і перевірки дивляться лише на нього: його трейс і
+стан бази після нього.
+
+Це той самий мок, що на L03: стенд шле запити на адресу провайдера через
+проксі (`HTTPS_PROXY`) і довіряє сертифікату MockServer. Різниця одна: у
+`mock/expectations.json` немає «заглушки на все». Запит, для якого немає
+відповіді в сценарії, MockServer пересилає далі, у справжній API. Так
+останній крок і виходить живим.
+
+Python локально не потрібен: ранер іде в Docker, у голому
+`python:3.12-slim`, лише стандартна бібліотека.
+
+## Що зробити, коротко
+
+Корінь курсу — `~/paypilot`: стенд у `~/paypilot/paypilot-stand`, цей
+репозиторій — у `~/paypilot/l07`.
+
+1. Оновити стенд до коміту з D28 і D29 (`325e2dd` або новіше). Стенд для L07
+   живе в [`paypilot-stand-shared`](https://github.com/sergeytkachenko/paypilot-stand-shared),
+   а не в старому `paypilot-stand`, тож наявний клон спершу перенаправте:
+   `cd ~/paypilot/paypilot-stand && git remote set-url origin https://github.com/sergeytkachenko/paypilot-stand-shared.git && git fetch origin && git reset --hard origin/main`.
+   Стенду ще немає: `git clone https://github.com/sergeytkachenko/paypilot-stand-shared.git ~/paypilot/paypilot-stand`.
+2. Склонувати кіт: `git clone https://github.com/sergeytkachenko/paypilot-l07-eval.git ~/paypilot/l07`.
+3. Підняти мок: `cd ~/paypilot/l07 && docker compose up -d llm-mock`.
+4. Перезапустити стенд за проксі (з каталогу стенду):
+   `docker compose -f docker-compose.yml -f ../l07/mock/stand.override.yml up -d --build --force-recreate stand`.
+5. Прогнати один сценарій: `cd ~/paypilot/l07 && docker compose run --rm eval --scenario S1`.
+6. Після лабораторної повернути стенд без проксі:
+   `cd ~/paypilot/paypilot-stand && docker compose up -d --force-recreate stand`.
+
+## Що потрібно
+
+- Docker Desktop (macOS, Windows) або Docker Engine з compose (Linux).
+- Локальний стенд `~/paypilot/paypilot-stand` на `http://localhost:8000`.
+  Ранер скидає базу стенду перед кожним прогоном, тому на спільному стенді
+  його не запускайте.
+- Ключ моделі в `.env` стенду. Основний шлях — OpenRouter:
+  `OPENROUTER_API_KEY=…` і (за бажанням) `LLM_MODEL=anthropic/claude-haiku-5.5`.
+  Override вмикає `LLM_PROVIDER=openrouter`. Для ключа OpenAI запустіть крок 4
+  з `L07_PROVIDER=openai`; тоді ціна в звіті буде порожня (модель без ціни в
+  стенді), а кеш OpenAI кешує сам, без позначки `cache_control`.
+- Живий крок коштує десяті частки цента на OpenRouter; мок-кроки безкоштовні.
+
+## Що в репозиторії
+
+| Файл | Що це |
+|---|---|
+| `scenarios/*.json` | п'ять сценаріїв: репліки, відповіді мока на попередніх кроках, перевірки живого кроку |
+| `build_mock.py` | будує `mock/expectations.json` зі сценаріїв |
+| `mock/expectations.json` | що відповідає мок: по одному запису на кожну відповідь моделі на попередніх кроках |
+| `mock/stand.override.yml`, `mock/mockserver-ca.pem` | перемикають стенд на проксі і сертифікат MockServer |
+| `run_step.py` | ранер: проганяє діалог, бере трейс живого кроку, перевіряє його і стан бази |
+| `docker-compose.yml` | `llm-mock` і `eval` |
+
+## Як влаштований сценарій
+
+```json
+{
+  "id": "S1",
+  "customer_id": "CUS-0002",
+  "conditions": {
+    "baseline": {"profile": "clean"},
+    "defect":   {"profile": "clean", "defects": "D12"}
+  },
+  "turns": [
+    {"user": "Which accounts do I have with you?",
+     "model": [
+       {"tool_calls": [{"id": "call_s1_acc", "name": "get_account", "arguments": {}}]},
+       {"text": "You have two accounts: ACC-1002 in EUR and ACC-1003 in USD."}]},
+    {"user": "Please dispute it as unauthorized.", "live": true}
+  ],
+  "assertions": [
+    {"kind": "state_row", "table": "disputes", "where": {"transaction_id": "TX-0202"},
+     "expect_fields": {"account_id": "ACC-1003", "currency": "USD"}, "expected_count": 1}
+  ]
+}
+```
+
+- `turns[].model` — що «сказала» б модель на цьому кроці: виклик інструмента
+  або текст. Інструменти виконує **стенд**, по-справжньому, тому стан бази після
+  мок-кроків реальний.
+- `live: true` — крок, який іде в справжню модель. Перевірки дивляться лише на
+  нього.
+- `gate` і `runs` — у якому прогоні живе сценарій: `daily` — детерміновані перевірки, `runs: 1`; `release` — ймовірнісні, `runs: 5`. `--gate daily` запускає лише daily-сценарії, кожен стільки разів, скільки сказано в `runs`; без `--gate` — один раз.
+- `conditions` — з якими налаштуваннями стенду ганяти сценарій. Дефекти
+  вмикаються заголовком `X-Stand-Settings` на кожен запит; профіль стенду
+  ранер не перемикає. `"defects": ""` у baseline явно вимикає все, що
+  задано в `DEFECTS` у `.env` стенду, — інакше baseline може почервоніти.
+
+Мок впізнає крок за останнім повідомленням у запиті до моделі: за текстом
+репліки користувача або за `tool_call_id` результату інструмента. Звідси три
+правила для власних сценаріїв:
+
+1. Текст кожної репліки унікальний і без апострофів.
+2. `id` викликів інструментів у мок-відповідях фіксовані й унікальні (`call_…`).
+3. Виклики валідні для клієнта сесії. Чужий рахунок або транзакція дадуть
+   `{"error": …}`, мок однаково відповість наступним текстом, і стан бази тихо
+   розійдеться з транскриптом.
+
+Після зміни сценаріїв перебудуйте мок і перезапустіть його:
+
+```bash
+docker compose run --rm --entrypoint python eval build_mock.py
+docker compose restart llm-mock
+```
+
+Ранер перевіряє, що кожен мок-крок справді відповів моком: якщо відповідь
+відрізняється від сценарію, він зупиняється з `ERROR: step N was meant to come
+from the mock`. Найчастіша причина — стенд запущено без override. Друга — мок не підхопив файл під час старту і стоїть порожній. Перевірка:
+
+```bash
+curl -s -X PUT "localhost:1080/mockserver/retrieve?type=ACTIVE_EXPECTATIONS" -d '{}' \
+  | python3 -c 'import json,sys; print("expectations:", len(json.load(sys.stdin)))'
+```
+
+Має бути `expectations: 17` (або стільки, скільки записів у вашому `mock/expectations.json`). Якщо `0`, завантажте файл без перезапуску:
+
+```bash
+curl -s -X PUT localhost:1080/mockserver/expectation -H 'content-type: application/json' \
+  -d @mock/expectations.json -o /dev/null -w "%{http_code}\n"
+```
+
+Відповідь `201` — записи на місці. Ті самі записи видно в дашборді мока: `http://localhost:1080/mockserver/dashboard`, панель Active Expectations.
+
+## Перевірки живого кроку
+
+| `kind` | Що перевіряє | Рівень драбини |
+|---|---|---|
+| `tool_called` / `tool_not_called` | є (немає) спан інструмента з такими аргументами | 1 / 4 |
+| `tool_order` | `before: [a, b]`: якщо `b` викликано, то `a` — раніше | 3 |
+| `tool_sequence` | `must_include` / `must_exclude`: які інструменти мають бути і яких не має бути | 3 |
+| `tool_call_count` | скільки разів викликано інструмент | 1 |
+| `max_tool_calls` | загальна кількість викликів інструментів за крок | 2 |
+| `tool_result_schema` | результат інструмента має поля потрібних типів (outputSchema) | 1 |
+| `state_row` | рядки таблиці після кроку: кількість і значення полів | 1 |
+| `cache_read_min` | скільки вхідних токенів кожен виклик моделі, починаючи з `from_call`, прочитав з кешу | 2 |
+
+## Сценарії і що вийшло 21.10
+
+Заміри: стенд `325e2dd`, `anthropic/claude-haiku-5.5` через OpenRouter, по 5
+прогонів на умову. Ціна — живого кроку; мок-кроки коштують 0.
+
+| Сценарій | Живий крок | baseline | дефект |
+|---|---|---|---|
+| **S1** · D12 | «Please dispute it as unauthorized.» після двох мок-кроків | 5/5: рядок на ACC-1003, USD | 0/5: рядок на ACC-1002, EUR; аргументи виклику правильні |
+| **S2** · анафора | «I never made the other one» → має стати TX-0202 | 5/5 | — |
+| **S3** · D29 | «Please open a duplicate-charge dispute for TX-0402.» | 5/5: 1–2 інструменти, $0.0004–0.0006 | 0/5: результат без `eligible`/`checks` 5/5; **спір усе ж відкрито 3/5**; 2–4 інструменти; до $0.0017 |
+| **S4** · повтор | «Please open it again…» після мок-кроку, що вже відкрив спір | 5/5: один рядок | — |
+| **S5** · D28 | «What are my current daily and monthly transfer limits?» | 5/5: `cache_read` 2514 на другому виклику, ~$0.0003 | 4/5: `cache_read` 0, ~$0.00088; в одному прогоні провайдер кеш таки віддав |
+
+## Пастки
+
+- **Мова.** Якщо в діалозі змішано англійську й українську, стенд дописує в
+  кінець промпту правило мови відповіді, і кеш ламається й без D28.
+- **Спільний стенд.** Не запускайте ранер на `paypilot.xmesh.pl`: він скидає
+  базу.
+- **Довгі діалоги.** Після 8 кроків стенд згортає історію в підсумок, і
+  перевірки «на кроці N» читають уже інший контекст.
+- **Клієнт сесії.** Ранер шле той самий `customer_id` на кожному кроці; інший
+  клієнт у тій самій сесії дає 409.

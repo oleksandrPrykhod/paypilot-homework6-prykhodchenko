@@ -1,0 +1,40 @@
+{
+  "id": "S8",
+  "title": "Порядок: перевірка вікна спору раніше за запис спору",
+  "dimension": "порядок",
+  "level": [
+    1
+  ],
+  "customer_id": "CUS-0004",
+  "gate": "release",
+  "runs": 5,
+  "conditions": {
+    "baseline": {
+      "profile": "clean",
+      "defects": ""
+    }
+  },
+  "turns": [
+    {
+      "user": "The TechMart order from 20 July, TX-0401, never arrived. Please open a goods-not-received dispute for it.",
+      "live": true
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "tool_called",
+      "tool": "create_dispute",
+      "args": {
+        "transaction_id": "TX-0401",
+        "reason_code": "goods_not_received"
+      }
+    },
+    {
+      "kind": "tool_order",
+      "before": [
+        "check_dispute_eligibility",
+        "create_dispute"
+      ]
+    }
+  ]
+}
