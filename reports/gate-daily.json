@@ -1,0 +1,363 @@
+[
+ {
+  "scenario": "S1",
+  "condition": "baseline",
+  "settings": {
+   "profile": "clean",
+   "defects": ""
+  },
+  "runs": [
+   {
+    "run": 1,
+    "live_step": 3,
+    "passed": true,
+    "verdicts": [
+     {
+      "kind": "tool_called",
+      "ok": true,
+      "detail": "create_dispute calls: [{'transaction_id': 'TX-0202', 'reason_code': 'unauthorized_debit'}]"
+     },
+     {
+      "kind": "state_row",
+      "ok": true,
+      "detail": "rows [{'transaction_id': 'TX-0202', 'account_id': 'ACC-1003', 'amount': 89.99, 'currency': 'USD'}]"
+     }
+    ],
+    "answer": "I've opened dispute 1 for transaction TX-0202, the 89.99 USD CloudServe Subscription charge on ACC-1003 dated 8 September 2026, under the reason \"unauthorized debit\". Its status is open.",
+    "tools": [
+     "check_dispute_eligibility",
+     "create_dispute"
+    ],
+    "model_calls": 3,
+    "cache_read": [
+     0,
+     2514,
+     2514
+    ],
+    "cost_usd": 0.000798,
+    "mock_answered": 4,
+    "mock_seen": 7,
+    "step_ms": 4409.9,
+    "llm_ms": [
+     1607.5,
+     1403.9,
+     1391.8
+    ],
+    "tool_ms": [
+     [
+      "check_dispute_eligibility",
+      1.0
+     ],
+     [
+      "create_dispute",
+      5.3
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "scenario": "S1",
+  "condition": "defect",
+  "settings": {
+   "profile": "clean",
+   "defects": "D12"
+  },
+  "runs": [
+   {
+    "run": 1,
+    "live_step": 3,
+    "passed": false,
+    "verdicts": [
+     {
+      "kind": "tool_called",
+      "ok": true,
+      "detail": "create_dispute calls: [{'transaction_id': 'TX-0202', 'reason_code': 'unauthorized_debit'}]"
+     },
+     {
+      "kind": "state_row",
+      "ok": false,
+      "detail": "account_id='ACC-1002', expected 'ACC-1003'; currency='EUR', expected 'USD'"
+     }
+    ],
+    "answer": "I've opened dispute 1 for TX-0202, the 89.99 USD CloudServe Subscription charge on ACC-1003 dated 8 September 2026, under the reason \"unauthorized debit\". Its status is open.",
+    "tools": [
+     "check_dispute_eligibility",
+     "create_dispute"
+    ],
+    "model_calls": 3,
+    "cache_read": [
+     0,
+     2638,
+     2638
+    ],
+    "cost_usd": 0.000774,
+    "mock_answered": 4,
+    "mock_seen": 7,
+    "step_ms": 2909.3,
+    "llm_ms": [
+     959.6,
+     925.1,
+     1017.4
+    ],
+    "tool_ms": [
+     [
+      "check_dispute_eligibility",
+      1.2
+     ],
+     [
+      "create_dispute",
+      5.4
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "scenario": "S3A",
+  "condition": "baseline",
+  "settings": {
+   "profile": "clean",
+   "defects": ""
+  },
+  "runs": [
+   {
+    "run": 1,
+    "live_step": 2,
+    "passed": true,
+    "verdicts": [
+     {
+      "kind": "tool_result_schema",
+      "ok": true,
+      "detail": "result matches the contract"
+     }
+    ],
+    "answer": "I can't open a dispute for TX-0402. The 60-day window for duplicate-charge disputes closed on 12 September 2026, and today is 15 September 2026. The transaction date was 14 July 2026, so it falls outside the window. I haven't opened anything.\n\nIf you believe the second charge was made in error, I can escalate the case to a human support agent to review whether any other option applies. Would you like me to do that?",
+    "tools": [
+     "check_dispute_eligibility"
+    ],
+    "model_calls": 2,
+    "cache_read": [
+     2514,
+     2514
+    ],
+    "cost_usd": 0.000358,
+    "mock_answered": 2,
+    "mock_seen": 4,
+    "step_ms": 2840.9,
+    "llm_ms": [
+     1013.0,
+     1826.0
+    ],
+    "tool_ms": [
+     [
+      "check_dispute_eligibility",
+      1.6
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "scenario": "S3A",
+  "condition": "defect",
+  "settings": {
+   "profile": "clean",
+   "defects": "D29"
+  },
+  "runs": [
+   {
+    "run": 1,
+    "live_step": 2,
+    "passed": false,
+    "verdicts": [
+     {
+      "kind": "tool_result_schema",
+      "ok": false,
+      "detail": "eligible: expected boolean, got {\"ok\": true, \"r\": \"N\", \"c\": [3], \"w\": 60}; checks: expected object, got {\"ok\": true, \"r\": \"N\", \"c\": [3], \"w\": 60}"
+     }
+    ],
+    "answer": "I've opened a duplicate-charge dispute for TX-0402, the 240.00 EUR TechMart Online payment on 14 July 2026. The dispute ID is 1 and its status is open.\n\nTX-0401, the 240.00 EUR payment on 20 July 2026, is not part of this dispute and remains on your account.",
+    "tools": [
+     "check_dispute_eligibility",
+     "create_dispute"
+    ],
+    "model_calls": 3,
+    "cache_read": [
+     2514,
+     2514,
+     2514
+    ],
+    "cost_usd": 0.000491,
+    "mock_answered": 2,
+    "mock_seen": 5,
+    "step_ms": 3925.0,
+    "llm_ms": [
+     847.1,
+     1652.4,
+     1419.2
+    ],
+    "tool_ms": [
+     [
+      "check_dispute_eligibility",
+      1.1
+     ],
+     [
+      "create_dispute",
+      4.7
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "scenario": "S4",
+  "condition": "baseline",
+  "settings": {
+   "profile": "clean",
+   "defects": ""
+  },
+  "runs": [
+   {
+    "run": 1,
+    "live_step": 2,
+    "passed": true,
+    "verdicts": [
+     {
+      "kind": "state_row",
+      "ok": true,
+      "detail": "rows [{'transaction_id': 'TX-0401', 'account_id': 'ACC-1005', 'amount': 240.0, 'currency': 'EUR'}]"
+     }
+    ],
+    "answer": "I haven't opened it again. Dispute 1 for TX-0401 was created and returned status \"open.\" Submitting another one could create a second dispute on the same transaction.\n\nI don't have a tool that lists existing disputes, so I can't re-check its status from here. If you want independent confirmation, I can escalate to a human agent to verify dispute 1 on TX-0401.",
+    "tools": [],
+    "model_calls": 1,
+    "cache_read": [
+     2514
+    ],
+    "cost_usd": 0.000216,
+    "mock_answered": 3,
+    "mock_seen": 4,
+    "step_ms": 1961.2,
+    "llm_ms": [
+     1961.0
+    ],
+    "tool_ms": []
+   }
+  ]
+ },
+ {
+  "scenario": "S6",
+  "condition": "baseline",
+  "settings": {
+   "profile": "clean",
+   "defects": ""
+  },
+  "runs": [
+   {
+    "run": 1,
+    "live_step": 2,
+    "passed": true,
+    "verdicts": [
+     {
+      "kind": "tool_called",
+      "ok": true,
+      "detail": "create_dispute calls: [{'transaction_id': 'TX-0801', 'reason_code': 'unauthorized_debit'}]"
+     },
+     {
+      "kind": "state_row",
+      "ok": true,
+      "detail": "rows [{'transaction_id': 'TX-0801', 'account_id': 'ACC-1009', 'amount': 120.0, 'currency': 'USD'}]"
+     }
+    ],
+    "answer": "I've opened an unauthorized-debit dispute for TX-0801 (BookDepot US, 120.00 USD, 9 September 2026). Dispute ID: 1, status: open.\n\nNext steps: the dispute will be reviewed under the standard process. If you want to add details or check its progress, let me know.",
+    "tools": [
+     "check_dispute_eligibility",
+     "create_dispute"
+    ],
+    "model_calls": 3,
+    "cache_read": [
+     2514,
+     2514,
+     2514
+    ],
+    "cost_usd": 0.000696,
+    "mock_answered": 2,
+    "mock_seen": 5,
+    "step_ms": 5393.7,
+    "llm_ms": [
+     1515.1,
+     2806.7,
+     1066.1
+    ],
+    "tool_ms": [
+     [
+      "check_dispute_eligibility",
+      1.2
+     ],
+     [
+      "create_dispute",
+      4.1
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "scenario": "S6",
+  "condition": "defect",
+  "settings": {
+   "profile": "clean",
+   "defects": "D11"
+  },
+  "runs": [
+   {
+    "run": 1,
+    "live_step": 2,
+    "passed": false,
+    "verdicts": [
+     {
+      "kind": "tool_called",
+      "ok": true,
+      "detail": "create_dispute calls: [{'transaction_id': 'TX-0801', 'reason_code': 'unauthorized_debit'}]"
+     },
+     {
+      "kind": "state_row",
+      "ok": false,
+      "detail": "currency='EUR', expected 'USD'"
+     }
+    ],
+    "answer": "I've opened an unauthorized debit dispute for TX-0801 (BookDepot US, 120.00 USD, 9 September 2026). The dispute ID is 1 and its status is open.\n\nThe transaction is within the dispute window, which runs until 4 November 2026. Would you like me to do anything else, such as escalating to a human agent to review the case?",
+    "tools": [
+     "check_dispute_eligibility",
+     "create_dispute"
+    ],
+    "model_calls": 3,
+    "cache_read": [
+     2514,
+     2514,
+     2514
+    ],
+    "cost_usd": 0.0005,
+    "mock_answered": 2,
+    "mock_seen": 5,
+    "step_ms": 3453.2,
+    "llm_ms": [
+     1062.0,
+     1326.6,
+     1057.8
+    ],
+    "tool_ms": [
+     [
+      "check_dispute_eligibility",
+      1.1
+     ],
+     [
+      "create_dispute",
+      5.0
+     ]
+    ]
+   }
+  ]
+ }
+]

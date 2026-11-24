@@ -168,6 +168,9 @@ def run(scenario, condition, settings, runs):
             "cost_usd": res["usage"].get("cost_usd"),
             "mock_answered": scripted_calls,
             "mock_seen": len(_mock_requests()),
+            "step_ms": tree.get("duration_ms"),
+            "llm_ms": [c.get("duration_ms") for c in llm],
+            "tool_ms": [[t["attributes"]["tool.name"], t.get("duration_ms")] for t in _tool_spans(tree)],
         })
         print(_line(scenario, condition, rows[-1]))
     return rows
@@ -177,7 +180,7 @@ def _line(scenario, condition, row):
     mark = "PASS" if row["passed"] else "FAIL"
     head = (f"{scenario['id']} {condition:<8} run {row['run']} {mark}  step {row['live_step']}: "
             f"{row['model_calls']} model call(s), tools {row['tools']}, "
-            f"cache_read {row['cache_read']}, cost ${row['cost_usd']}; "
+            f"cache_read {row['cache_read']}, cost ${row['cost_usd']}, {row['step_ms']} ms; "
             f"mock answered {row['mock_answered']} of {row['mock_seen']} model requests")
     details = [f"    {'ok ' if v['ok'] else 'BAD'} {v['kind']}: {v['detail']}" for v in row["verdicts"]]
     return "\n".join([head, *details])
@@ -185,7 +188,7 @@ def _line(scenario, condition, row):
 
 def main():
     parser = argparse.ArgumentParser(description="Test one step of a multi-turn chat: mocked history, live last step.")
-    parser.add_argument("--scenario", help="S1..S5; all scenarios when omitted")
+    parser.add_argument("--scenario", help="scenario id (S1..S10); all scenarios when omitted")
     parser.add_argument("--condition", default="all", help="baseline | defect | all")
     parser.add_argument("--runs", type=int, help="runs per condition; default 1, or the scenario's runs with --gate")
     parser.add_argument("--gate", help="daily | release: only scenarios with this gate")

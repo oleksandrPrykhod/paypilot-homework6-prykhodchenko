@@ -6,7 +6,9 @@
 |---|---|
 | `tool-call-testing-policy.md` | Policy: **A** — заповнена для PayPilot, **B** — порожня форма для будь-якого агента |
 | `docs/policy-evidence.md` | повна робоча версія з таблицями прогонів і лабораторними записами — докази до Policy |
-| `scenarios/` | 10 сценаріїв, з них 4 власні (S6, S7, S8, S9); у кожному — `dimension`, `level`, `gate`, `runs` |
+| `scenarios/` | 11 сценаріїв, з них 5 власні (S6, S7, S8, S9, S10); у кожному — `dimension`, `level`, `gate`, `runs` |
+| `reports/` | звіти прогонів gate (`gate-daily.json`, `gate-release.json`, усі умови) — джерело чисел Policy; у кожному прогоні `step_ms`, `llm_ms`, `tool_ms` з `duration_ms` спанів трейсу |
+| `run_step.py` | ранер кіта + запис тривалостей (`step_ms`, `llm_ms`, `tool_ms`) у JSON-звіт |
 | `mock/expectations.json` | відповіді мока на попередніх кроках, зібрані `build_mock.py` зі `scenarios/` |
 
 | ID | Вимірник | gate · runs | Перевірки живого кроку |
@@ -21,14 +23,15 @@
 | S7 · D13 (власний) | інструмент | release · 5 | tool_sequence |
 | S8 (власний) | порядок | release · 5 | tool_called (передумова), tool_order |
 | S9 (власний) | стан (write, якого не мало бути) | release · 5 | tool_call_count 0, state_row expected_count 0 |
+| S10 (власний) | порядок (хід підтвердження) | release · 5 | tool_called (передумова), state_row expected_count 1; замір часу і ціни ходу |
 
 **Запуск з цього репозиторію** (замість `~/paypilot/l07` у кроках нижче — корінь цього репо):
 
 ```
 docker compose run --rm --entrypoint python eval build_mock.py
 docker compose up -d llm-mock
-docker compose run --rm eval --gate daily
-docker compose run --rm eval --gate release
+docker compose run --rm eval --gate daily --json reports/gate-daily.json
+docker compose run --rm eval --gate release --json reports/gate-release.json
 ```
 
 Стенд за проксі піднімається з `mock/stand.override.yml` (крок 4 нижче). Override бере сертифікат мока зі шляху `${L07_DIR:-../l07}`; якщо цей репо лежить не в `../l07` відносно стенда, задайте `L07_DIR=<шлях до цього репо>`. Ключ OpenRouter лежить у `.env` стенда, не тут; `.env` до репозиторію не потрапляє. Сирі звіти `run-*.json` — у `.gitignore`.
